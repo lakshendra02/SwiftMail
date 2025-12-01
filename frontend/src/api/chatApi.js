@@ -1,8 +1,11 @@
 import axios from "axios";
 
+const BACKEND_BASE_URL =
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+
 // Set the base URL to your deployed FastAPI backend URL
 const API = axios.create({
-  baseURL: "https://swiftmail-backend-ty9c.onrender.com/api",
+  baseURL: `${BACKEND_BASE_URL}/api`,
   withCredentials: true, // Important for session cookies
 });
 
