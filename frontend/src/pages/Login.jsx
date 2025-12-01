@@ -4,41 +4,38 @@ const Login = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const authError = urlParams.get("auth_error");
-    if (authError) {
-      setError(authError);
-    }
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get("auth_error");
+    if (authError) setError(authError);
   }, []);
 
   const handleLogin = () => {
-    // IMPORTANT: Use your deployed backend URL here
     window.location.href = "http://localhost:8000/api/auth/login";
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md text-center">
-        <h1 className="text-3xl font-bold mb-4 text-gray-800">
-          Constructure AI Assistant
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+      <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-md text-center border border-gray-200">
+        <h1 className="text-3xl font-semibold mb-4 text-gray-800">
+          SwiftMail - AI Email Assistant
         </h1>
+
         <p className="mb-6 text-gray-600">
-          Please log in with Google to access your email dashboard.
+          Log in with Google to access your email dashboard.
         </p>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border-l-4 border-red-500 text-red-700 text-sm font-medium">
-            <span className="font-bold">🔴 Login Error:</span> {error}. Please
-            try again.
+          <div className="mb-5 p-3 bg-red-100 border border-red-300 text-red-700 text-sm rounded-lg">
+            Login Error: {error}. Please try again.
           </div>
         )}
 
         <button
           onClick={handleLogin}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-md flex items-center justify-center space-x-2"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition shadow-md flex items-center justify-center space-x-3"
         >
           <svg
-            className="w-5 h-5"
+            className="w-6 h-6"
             viewBox="0 0 48 48"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -63,9 +60,8 @@ const Login = () => {
           <span>Sign in with Google</span>
         </button>
 
-        <p className="mt-6 text-xs text-gray-500">
-          Note: This app requires permissions to read, send, and delete your
-          Gmail emails.
+        <p className="mt-6 text-xs text-gray-500 leading-relaxed">
+          This app requires access to read, send, and delete your Gmail emails.
         </p>
       </div>
     </div>
