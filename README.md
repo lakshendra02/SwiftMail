@@ -36,10 +36,10 @@ The application features a secure Google OAuth flow, a conversational chatbot in
 2.  **Create OAuth 2.0 Client ID** (Web application type).
 3.  **Authorized JavaScript origins:**
     * `http://localhost:5173`
-    * `https://your-app-name.vercel.app` (Your live Vercel URL)
+    * `https://swift-mail-chi.vercel.app`
 4.  **Authorized redirect URIs:**
     * `http://localhost:8000/api/auth/callback`
-    * `https://your-backend-url.com/api/auth/callback` (Your live backend URL)
+    * `https://swiftmail-backend-ty9c.onrender.com/api/auth/callback`
 5.  **Test User:** Add `test@gmail.com` as a **Test User** in the OAuth Consent Screen settings.
 
 ### 3. Clone the repository
@@ -98,3 +98,4 @@ The application features a secure Google OAuth flow, a conversational chatbot in
     The frontend will run on `http://localhost:5173`.
 
 ***
+
