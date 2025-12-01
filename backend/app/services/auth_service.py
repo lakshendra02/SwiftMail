@@ -1,6 +1,7 @@
 import json
 import os
 import base64
+import requests
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
@@ -32,7 +33,7 @@ def get_google_flow(state=None):
 def generate_auth_url():
     """Generates the URL for the user to initiate login."""
     flow = get_google_flow()
-    auth_url, state = flow.authorization_url(access_type='offline', prompt='consent')
+    auth_url, state = flow.authorization_url(access_type="offline", prompt="consent", include_granted_scopes="true")
     return auth_url, state
 
 async def exchange_code_for_tokens(code: str):
@@ -84,21 +85,71 @@ async def load_and_refresh_tokens(request: Request, session_id: str):
         token_uri=user_data["token_uri"],
         client_id=user_data["client_id"],
         client_secret=user_data["client_secret"],
-        scopes=user_data["scopes"]
+        scopes=user_data.get("scopes")
     )
     
+    # Debug: log the scopes that the Credentials object currently reports
+    try:
+        print(f"[auth_service] loaded creds.scopes: {creds.scopes}")
+    except Exception:
+        pass
+
     if not creds.valid:
         if creds.refresh_token:
+            # Attempt to refresh the access token
             creds.refresh(Request())
-            
-            await collection.update_one(
-                {"_id": session_id},
-                {"$set": {"token": creds.token}}
-            )
+
+            # After refresh, verify the actual scopes granted on the new access token
+            try:
+                tokeninfo_resp = requests.get(
+                    "https://www.googleapis.com/oauth2/v3/tokeninfo",
+                    params={"access_token": creds.token},
+                    timeout=10
+                )
+                if tokeninfo_resp.status_code == 200:
+                    tokeninfo = tokeninfo_resp.json()
+                    granted_scopes = tokeninfo.get("scope", "").split()
+                    print(f"[auth_service] tokeninfo scopes after refresh: {granted_scopes}")
+                    # Persist the possibly-updated scopes and token
+                    await collection.update_one(
+                        {"_id": session_id},
+                        {"$set": {"token": creds.token, "scopes": granted_scopes}}
+                    )
+                else:
+                    # Fallback: update token only
+                    await collection.update_one(
+                        {"_id": session_id},
+                        {"$set": {"token": creds.token}}
+                    )
+            except Exception as ex:
+                print(f"[auth_service] Warning: could not verify token scopes after refresh: {ex}")
+                await collection.update_one(
+                    {"_id": session_id},
+                    {"$set": {"token": creds.token}}
+                )
         else:
             await collection.delete_one({"_id": session_id})
             return None
-    
+    # If the token is already valid, verify the actual scopes on the access token
+    if creds.valid and creds.token:
+        try:
+            tokeninfo_resp = requests.get(
+                "https://www.googleapis.com/oauth2/v3/tokeninfo",
+                params={"access_token": creds.token},
+                timeout=10
+            )
+            if tokeninfo_resp.status_code == 200:
+                tokeninfo = tokeninfo_resp.json()
+                granted_scopes = tokeninfo.get("scope", "").split()
+                print(f"[auth_service] tokeninfo scopes (valid token): {granted_scopes}")
+                # Ensure DB reflects the actual granted scopes
+                await collection.update_one(
+                    {"_id": session_id},
+                    {"$set": {"scopes": granted_scopes}}
+                )
+        except Exception as ex:
+            print(f"[auth_service] Warning: could not verify token scopes for valid token: {ex}")
+
     return creds, user_data["username"]
 
 async def delete_session(request: Request, session_id: str):

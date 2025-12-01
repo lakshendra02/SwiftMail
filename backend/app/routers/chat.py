@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from app.services import ai_service, gmail_service, auth_service
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from app.services import ai_service, gmail_service
 from app.dependencies import get_current_user_credentials
+from app.models.chat import CommandRequest, ActionConfirmationRequest
 
 router = APIRouter(
     prefix="/api/chat",
@@ -9,13 +10,14 @@ router = APIRouter(
 
 @router.post("/command")
 async def handle_chatbot_command(
-    command_data: dict, 
+    command_data: CommandRequest, 
     creds_tuple: tuple = Depends(get_current_user_credentials)
 ):
     """Processes a natural language command from the user."""
     creds, username = creds_tuple
-    command = command_data.get("command")
+    command = command_data.command
     
+    # 1. AI Intent Parsing 
     intent = await ai_service.parse_user_intent(command)
     action = intent.get("action")
     params = intent.get("params", {})
@@ -25,11 +27,11 @@ async def handle_chatbot_command(
             count = params.get("count", 5)
             emails = await gmail_service.fetch_latest_emails(creds, count=count)
             
+            # Generate summaries concurrently
             summaries = []
             for email in emails:
                 summary = await ai_service.generate_summary(email["body"])
                 summaries.append({**email, "summary": summary})
-
 
             return {
                 "response": f"Found the last {len(summaries)} emails, summarized below:",
@@ -39,7 +41,7 @@ async def handle_chatbot_command(
 
         elif action in ["respond", "delete"]:
             return {
-                "response": f"I detected the intent to **{action}**. Please refine your command or confirm the next step.",
+                "response": f"I detected the intent to **{action}**. Please refine your command or click an action button next to a listed email.",
                 "action": "needs_refinement",
                 "data": {"intent": intent}
             }
@@ -54,23 +56,89 @@ async def handle_chatbot_command(
         print(f"Error processing command: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An error occurred while contacting Gmail or the AI service.")
 
+# NEW ENDPOINT: Triggers AI reply generation for a specific email
+@router.post("/suggest-reply")
+async def suggest_reply(
+    request_data: ActionConfirmationRequest, 
+    creds_tuple: tuple = Depends(get_current_user_credentials)
+):
+    """Fetches an email and generates a proposed reply using AI."""
+    creds, _ = creds_tuple
+    email_id = request_data.email_id
+    
+    try:
+        # 1. Fetch the full email content
+        email_data = await gmail_service.fetch_single_email_content(creds, email_id)
+        
+        if not email_data:
+             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Email not found or access denied.")
+             
+        # 2. Generate the reply
+        proposed_reply = await ai_service.generate_proposed_reply(email_data["body"])
+        
+        return {
+            "response": f"Proposed reply for subject '{email_data['subject']}':",
+            "action": "reply_suggested",
+            "data": {
+                "original_email_id": email_id,
+                "proposed_reply": proposed_reply
+            }
+        }
+    except Exception as e:
+        print(f"Error suggesting reply: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to generate AI reply.")
+
+
+# UPDATED ENDPOINT: Confirm Delete with explicit 403 scope handling
 @router.post("/delete-email")
 async def confirm_delete(
-    delete_data: dict, 
+    delete_data: ActionConfirmationRequest, 
     creds_tuple: tuple = Depends(get_current_user_credentials)
 ):
     creds, _ = creds_tuple
-    email_id = delete_data.get("email_id")
+    email_id = delete_data.email_id
     
     if not email_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email ID is required for deletion.")
 
-    if await gmail_service.delete_email(creds, email_id):
-        return {"status": "success", "response": f"🗑️ Email ID `{email_id[:10]}...` deleted successfully!"}
-    else:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete email from Gmail.")
+    try:
+        if await gmail_service.delete_email(creds, email_id):
+            return {"status": "success", "response": f"🗑️ Email ID `{email_id[:10]}...` deleted successfully!"}
+        else:
+            # Generic 500 for non-specific API errors
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete email from Gmail (API issue).")
+            
+    except Exception as e:
+        print(f"Error deleting email: {e}")
+        # Intercept the specific 403 insufficient scope error
+        if "insufficientPermissions" in str(e):
+             raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Authentication scope issue: Your Google credentials lack the necessary permissions (modify/delete). Please log out and log back in, ensuring all permissions are granted."
+            )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred during deletion.")
 
+# Endpoint to get the currently logged-in user profile (for greeting)
 @router.get("/user/profile")
 async def get_user_profile(creds_tuple: tuple = Depends(get_current_user_credentials)):
     _, username = creds_tuple
     return {"name": username}
+
+# Endpoint for confirming and sending the reply (called from a button in the React UI)
+@router.post("/send-reply")
+async def send_email_reply(
+    reply_data: ActionConfirmationRequest, 
+    creds_tuple: tuple = Depends(get_current_user_credentials)
+):
+    creds, _ = creds_tuple
+    email_id = reply_data.email_id
+    reply_body = reply_data.reply_body
+    
+    try:
+        if await gmail_service.send_reply(creds, email_id, reply_body):
+            return {"response": "✅ Reply sent successfully!", "action": "status"}
+        else:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send reply via Gmail API.")
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred during email sending.")

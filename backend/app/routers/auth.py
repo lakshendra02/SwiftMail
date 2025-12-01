@@ -21,7 +21,7 @@ async def google_login(request: Request):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not initiate Google login.")
 
 @router.get("/callback")
-async def google_auth_callback(request: Request, code: str = None, error: str = None):
+async def google_auth_callback(request: Request, code: str = None, state: str = None, error: str = None):
     """Callback endpoint to handle the OAuth response from Google."""
     if error or not code:
         error_detail = error or "User denied access or login failed."

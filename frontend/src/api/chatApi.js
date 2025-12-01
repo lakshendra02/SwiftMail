@@ -1,4 +1,3 @@
-// frontend/src/api/chatApi.js
 import axios from "axios";
 
 // Set the base URL to your deployed FastAPI backend URL
@@ -11,7 +10,13 @@ export const processCommand = (command) => {
   return API.post("/chat/command", { command });
 };
 
+// NEW EXPORT
+export const suggestReply = (emailId) => {
+  return API.post("/chat/suggest-reply", { email_id: emailId });
+};
+
 export const sendReplyConfirmation = (emailId, replyBody) => {
+  // Note: API uses 'email_id' and 'reply_body'
   return API.post("/chat/send-reply", {
     email_id: emailId,
     reply_body: replyBody,

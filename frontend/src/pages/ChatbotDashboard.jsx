@@ -15,13 +15,19 @@ const initialMessages = [
 const ChatbotDashboard = () => {
   const [messages, setMessages] = useState(initialMessages);
   const [loading, setLoading] = useState(false);
-  const [emailsInView, setEmailsInView] = useState([]); // Stores fetched email data for reference
+  // emailsInView is currently unused but kept for future "delete by number" logic
+  // eslint-disable-next-line no-unused-vars
+  const [emailsInView, setEmailsInView] = useState([]);
 
+  // Auto-scroll effect
   useEffect(() => {
-    // Scroll to the bottom on message update
     const messageContainer = document.getElementById("message-container");
     if (messageContainer) {
-      messageContainer.scrollTop = messageContainer.scrollHeight;
+      // Scroll smoothly to the last message
+      messageContainer.scrollTo({
+        top: messageContainer.scrollHeight,
+        behavior: "smooth",
+      });
     }
   }, [messages, loading]);
 
@@ -34,7 +40,7 @@ const ChatbotDashboard = () => {
         setMessages([
           {
             sender: "AI",
-            text: `Hello, **${name}**! I'm your AI Email Assistant. I can read, reply, and delete emails. Try typing: "Read my last 5 emails", or "Delete the email from John".`,
+            text: `Hello, **${name}**! I'm your AI Email Assistant. I can read, reply, and delete emails. Try typing: "Read my last 5 emails".`,
             isSystem: true,
             id: Date.now(),
           },
@@ -87,8 +93,7 @@ const ChatbotDashboard = () => {
       ]);
     } catch (error) {
       const errorMessage =
-        error.response?.data?.detail ||
-        "An unexpected API error occurred. Please try again.";
+        error.response?.data?.detail || "An unexpected API error occurred.";
       setMessages((prev) => [
         ...prev,
         {
@@ -103,7 +108,39 @@ const ChatbotDashboard = () => {
     }
   };
 
+  // Handles button clicks and status updates from the Message component
   const handleAction = async (actionType, data) => {
+    // Status update from child component (e.g., temporary loading message from AI service)
+    if (actionType === "status_update") {
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "AI",
+          text: data.text,
+          isSystem: true,
+          id: Date.now() + 5,
+        },
+      ]);
+      return;
+    }
+
+    // New action: Proposed reply is ready to be confirmed
+    if (actionType === "reply_suggested") {
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "AI",
+          text: data.text,
+          isSystem: true,
+          action: "confirm_send", // Triggers the confirmation button in Message.jsx
+          data: data.data,
+          id: Date.now() + 5,
+        },
+      ]);
+      return;
+    }
+
+    // --- EXECUTE FINAL API ACTIONS ---
     setLoading(true);
     let apiCall;
     let successMessage;
@@ -112,7 +149,6 @@ const ChatbotDashboard = () => {
       apiCall = sendReplyConfirmation(data.original_email_id, data.reply_body);
       successMessage = "✅ Reply sent successfully!";
     } else if (actionType === "confirm_delete") {
-      // Logic to find email ID if needed (for delete by number)
       const emailIdToDelete = data.email_id;
       apiCall = deleteEmailConfirmation(emailIdToDelete);
       successMessage =
@@ -125,14 +161,14 @@ const ChatbotDashboard = () => {
     }
 
     try {
-      // Show transient status update
+      // Show transient status update (using a placeholder)
       setMessages((prev) => [
         ...prev,
         {
           sender: "AI",
-          text: `Processing action: ${actionType}...`,
+          text: `Executing ${actionType.replace("_", " ")}...`,
           isSystem: true,
-          id: Date.now() + 3,
+          id: Date.now() + 6,
         },
       ]);
 
@@ -143,19 +179,20 @@ const ChatbotDashboard = () => {
           sender: "AI",
           text: successMessage,
           isSystem: true,
-          id: Date.now() + 4,
+          id: Date.now() + 7,
         },
       ]);
     } catch (error) {
+      // Use the specific detail from the backend for the error message
+      const errorMessage =
+        error.response?.data?.detail || "Server error during execution.";
       setMessages((prev) => [
         ...prev,
         {
           sender: "AI",
-          text:
-            "❌ Action failed: " +
-            (error.response?.data?.detail || "Server error."),
+          text: `❌ Action failed: ${errorMessage}`,
           isSystem: true,
-          id: Date.now() + 4,
+          id: Date.now() + 7,
         },
       ]);
     } finally {
@@ -189,7 +226,7 @@ const ChatbotDashboard = () => {
         {loading && (
           <div className="flex justify-start">
             <div className="bg-yellow-100 text-yellow-800 rounded-bl-xl rounded-tr-xl rounded-br-xl p-3 text-sm italic shadow-md">
-              ...Thinking and contacting Gmail...
+              ...Working on it...
             </div>
           </div>
         )}
