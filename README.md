@@ -6,9 +6,10 @@ This project is a mini-AI powered email assistant built as a solution for the Co
 
 The application features a secure Google OAuth flow, a conversational chatbot interface (dashboard), and leverages AI to summarize emails, suggest replies, and intelligently parse user commands for read, respond, and delete operations.
 
-***
+## **Live Demo:** https://swift-mail-chi.vercel.app/
 
-## ⚙️ Technologies Used
+***
+## Technologies Used
 
 | Category | Technology | Key Libraries | Purpose |
 | :--- | :--- | :--- | :--- |
@@ -21,7 +22,7 @@ The application features a secure Google OAuth flow, a conversational chatbot in
 
 ***
 
-## 🚀 Setup Instructions
+## Setup Instructions
 
 ### 1. Prerequisites
 
@@ -98,4 +99,5 @@ The application features a secure Google OAuth flow, a conversational chatbot in
     The frontend will run on `http://localhost:5173`.
 
 ***
+
 
