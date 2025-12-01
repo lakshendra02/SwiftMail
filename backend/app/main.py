@@ -13,8 +13,8 @@ app = FastAPI(
 
 origins = [
     "http://localhost:3000",
-    "http://localhost:5173",
-    "https://swift-mail-chi.vercel.app", 
+    "https://localhost:5173",
+    "https://swift-mail-chi.vercel.app",
 ]
 
 app.add_middleware(
@@ -25,7 +25,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY, same_site='none', secure=True, https_only=True)
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=settings.SECRET_KEY,
+    same_site='none', 
+    https_only=True 
+)
 
 @app.on_event("startup")
 async def startup_db_client():
