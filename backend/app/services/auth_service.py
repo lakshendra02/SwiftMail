@@ -12,9 +12,7 @@ from fastapi import Request
 def get_database(request: Request):
     return request.app.mongodb
 
-
 def get_google_flow(state=None):
-    """Initializes the Google OAuth flow object."""
     return Flow.from_client_config(
         client_config={
             "web": {
@@ -31,13 +29,11 @@ def get_google_flow(state=None):
     )
 
 def generate_auth_url():
-    """Generates the URL for the user to initiate login."""
     flow = get_google_flow()
     auth_url, state = flow.authorization_url(access_type="offline", prompt="consent", include_granted_scopes="true")
     return auth_url, state
 
 async def exchange_code_for_tokens(code: str):
-    """Exchanges the authorization code for credentials."""
     flow = get_google_flow()
     flow.fetch_token(code=code)
     
@@ -46,9 +42,7 @@ async def exchange_code_for_tokens(code: str):
     
     return flow.credentials, user_info['name'], user_info['email']
 
-
 async def save_credentials_securely(request: Request, creds: Credentials, username: str, email: str) -> str:
-    """Stores credentials in MongoDB and returns a session ID."""
     db = get_database(request)
     collection = db[settings.MONGO_COLLECTION_NAME]
     
@@ -70,7 +64,6 @@ async def save_credentials_securely(request: Request, creds: Credentials, userna
     return session_id
 
 async def load_and_refresh_tokens(request: Request, session_id: str):
-    """Loads credentials from MongoDB and attempts refresh if expired."""
     db = get_database(request)
     collection = db[settings.MONGO_COLLECTION_NAME]
     
@@ -88,7 +81,6 @@ async def load_and_refresh_tokens(request: Request, session_id: str):
         scopes=user_data.get("scopes")
     )
     
-    # Debug: log the scopes that the Credentials object currently reports
     try:
         print(f"[auth_service] loaded creds.scopes: {creds.scopes}")
     except Exception:
@@ -96,10 +88,7 @@ async def load_and_refresh_tokens(request: Request, session_id: str):
 
     if not creds.valid:
         if creds.refresh_token:
-            # Attempt to refresh the access token
             creds.refresh(Request())
-
-            # After refresh, verify the actual scopes granted on the new access token
             try:
                 tokeninfo_resp = requests.get(
                     "https://www.googleapis.com/oauth2/v3/tokeninfo",
@@ -110,13 +99,11 @@ async def load_and_refresh_tokens(request: Request, session_id: str):
                     tokeninfo = tokeninfo_resp.json()
                     granted_scopes = tokeninfo.get("scope", "").split()
                     print(f"[auth_service] tokeninfo scopes after refresh: {granted_scopes}")
-                    # Persist the possibly-updated scopes and token
                     await collection.update_one(
                         {"_id": session_id},
                         {"$set": {"token": creds.token, "scopes": granted_scopes}}
                     )
                 else:
-                    # Fallback: update token only
                     await collection.update_one(
                         {"_id": session_id},
                         {"$set": {"token": creds.token}}
@@ -130,7 +117,7 @@ async def load_and_refresh_tokens(request: Request, session_id: str):
         else:
             await collection.delete_one({"_id": session_id})
             return None
-    # If the token is already valid, verify the actual scopes on the access token
+
     if creds.valid and creds.token:
         try:
             tokeninfo_resp = requests.get(
@@ -142,7 +129,6 @@ async def load_and_refresh_tokens(request: Request, session_id: str):
                 tokeninfo = tokeninfo_resp.json()
                 granted_scopes = tokeninfo.get("scope", "").split()
                 print(f"[auth_service] tokeninfo scopes (valid token): {granted_scopes}")
-                # Ensure DB reflects the actual granted scopes
                 await collection.update_one(
                     {"_id": session_id},
                     {"$set": {"scopes": granted_scopes}}
@@ -153,7 +139,6 @@ async def load_and_refresh_tokens(request: Request, session_id: str):
     return creds, user_data["username"]
 
 async def delete_session(request: Request, session_id: str):
-    """Removes a session from MongoDB."""
     db = get_database(request)
     collection = db[settings.MONGO_COLLECTION_NAME]
     await collection.delete_one({"_id": session_id})

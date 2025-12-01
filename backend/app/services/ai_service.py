@@ -6,21 +6,27 @@ from app.config import settings
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 async def parse_user_intent(command: str) -> dict:
-    """Uses Gemini to classify the user's command and extract parameters."""
-    
     schema = types.Schema(
         type=types.Type.OBJECT,
         properties={
-            "action": types.Schema(type=types.Type.STRING, enum=["read", "respond", "delete", "unknown"], description="The core email operation."),
-            "count": types.Schema(type=types.Type.INTEGER, description="Number of emails to fetch (default 5)."),
-            "sender": types.Schema(type=types.Type.STRING, description="Sender's name or email address."),
-            "subject_keyword": types.Schema(type=types.Type.STRING, description="A keyword or phrase in the subject line."),
-            "email_number": types.Schema(type=types.Type.INTEGER, description="Reference number for a listed email (e.g., 'email number 2' -> 2)."),
-            "reply_content": types.Schema(type=types.Type.STRING, description="Content the user wants to reply with.")
-        }
+            "action": types.Schema(type=types.Type.STRING, enum=["read", "respond", "delete", "unknown"]),
+            "count": types.Schema(type=types.Type.INTEGER),
+            "sender": types.Schema(type=types.Type.STRING),
+            "subject_keyword": types.Schema(type=types.Type.STRING),
+            "email_number": types.Schema(type=types.Type.INTEGER),
+            "reply_content": types.Schema(type=types.Type.STRING)
+        },
+        required=["action"]
     )
 
-    system_prompt = "You are an expert AI Email Assistant. Analyze the user's command and output a single JSON object strictly matching the provided schema. Do not output any text outside the JSON object. Default 'count' to 5 if action is 'read' and no number is specified."
+    system_prompt = (
+        "You are an expert AI Email Assistant. Your goal is to map complex user requests "
+        "into structured JSON commands. Analyze the user command and extract all relevant parameters. "
+        "If the user wants to reply with specific content (e.g., 'Reply to John that I'm busy'), "
+        "extract the entire reply message into 'reply_content'."
+        "If the action is 'read', default 'count' to 5 if no number is specified."
+        "Only output a single JSON object strictly matching the provided schema. Do not output any text outside the JSON object."
+    )
 
     response = client.models.generate_content(
         model='gemini-2.5-flash',
@@ -29,13 +35,14 @@ async def parse_user_intent(command: str) -> dict:
     )
     
     try:
-        return json.loads(response.text)
+        response_text = response.text.strip().replace("```json", "").replace("```", "")
+        return json.loads(response_text)
     except json.JSONDecodeError:
+        print(f"JSON Decode Error on AI response: {response.text}")
         return {"action": "unknown", "params": {}}
 
 
 async def generate_summary(email_body: str) -> str:
-    """Generates a concise summary for a single email."""
     prompt = (
         "Condense the following email body into a single, short, and concise summary "
         "of the main topic and required action (if any). Do not exceed two sentences."
@@ -50,7 +57,6 @@ async def generate_summary(email_body: str) -> str:
 
 
 async def generate_proposed_reply(original_email_content: str) -> str:
-    """Generates a professional, context-aware reply."""
     prompt = (
         "Based on the following email content, generate a professional, clear, "
         "and ready-to-send reply. Assume a standard closing (e.g., 'Best regards, [Your Name]'). "
