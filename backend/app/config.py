@@ -6,7 +6,7 @@ load_dotenv()
 class Settings:
     GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-    GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/callback")
+    GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "https://swiftmail-backend-ty9c.onrender.com//api/auth/callback")
     
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") 
     

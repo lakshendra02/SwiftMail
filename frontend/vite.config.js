@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        target: "https://swiftmail-backend-ty9c.onrender.com/",
         changeOrigin: true,
         secure: false,
       },

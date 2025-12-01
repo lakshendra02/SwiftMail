@@ -10,7 +10,8 @@ const Login = () => {
   }, []);
 
   const handleLogin = () => {
-    window.location.href = "http://localhost:8000/api/auth/login";
+    window.location.href =
+      "https://swiftmail-backend-ty9c.onrender.com/api/auth/login";
   };
 
   return (

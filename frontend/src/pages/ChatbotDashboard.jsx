@@ -199,7 +199,8 @@ const ChatbotDashboard = () => {
         </h1>
         <button
           onClick={() =>
-            (window.location.href = "http://localhost:8000/api/auth/logout")
+            (window.location.href =
+              "https://swiftmail-backend-ty9c.onrender.com//api/auth/logout")
           }
           className="text-sm bg-red-600 hover:bg-red-700 text-white py-1.5 px-4 rounded-lg transition"
         >
