@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Request, HTTPException, status
 from fastapi.responses import RedirectResponse
 from app.services import auth_service
+from app.config import settings
 
 router = APIRouter(
     prefix="/api/auth",
     tags=["Authentication"]
 )
 
-FRONTEND_DASHBOARD_URL = "https://your-app-name.vercel.app/dashboard" 
+FRONTEND_DASHBOARD_URL = f"{settings.FRONTEND_URL}/dashboard"
 
 @router.get("/login")
 async def google_login(request: Request):

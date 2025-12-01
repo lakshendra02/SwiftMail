@@ -16,6 +16,8 @@ class Settings:
     MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "ai_assistant_db")
     MONGO_COLLECTION_NAME = os.getenv("MONGO_COLLECTION_NAME", "user_tokens")
 
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
     GMAIL_SCOPES = [
         'https://www.googleapis.com/auth/gmail.readonly',
         'https://www.googleapis.com/auth/gmail.send',
