@@ -1,5 +1,7 @@
 fastapi
 uvicorn[standard]
+gunicorn
+
 python-dotenv
 
 google-auth
@@ -10,5 +12,7 @@ google-genai
 pymongo
 
 motor
+
+itsdangerous
 
 pydantic

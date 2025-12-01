@@ -14,7 +14,7 @@ app = FastAPI(
 origins = [
     "http://localhost:3000",
     "http://localhost:5173",
-    "https://your-app-name.vercel.app", 
+    "https://swift-mail-chi.vercel.app", 
 ]
 
 app.add_middleware(
